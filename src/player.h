@@ -49,6 +49,8 @@ typedef enum {
 	PLAYER_FINISHED,
 } BarPlayerMode;
 
+#define STR_BUF_SIZE 1000
+
 typedef struct {
 	/* public attributes protected by mutex */
 	pthread_mutex_t lock, aoplayLock;
@@ -86,8 +88,8 @@ typedef struct {
   char *title;
   char *station;
   bool save_file;
-  char tmp_filename [1000];
-  char save_complete[1000];
+  char tmp_filename [STR_BUF_SIZE];
+  char save_complete[STR_BUF_SIZE];
 	const BarSettings_t *settings;
 } player_t;
 

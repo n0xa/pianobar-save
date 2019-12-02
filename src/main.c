@@ -177,9 +177,10 @@ static void BarMainCheckSaveDirectory (BarSettings_t *settings) {
    if (ENOENT == errno) {
      BarUiMsg (settings, MSG_NONE, "\n%s\nNot found! attempting to create... ", save_dir);
 
-     char buffer [2000];
+     const int BUF_SIZE = 2000;
+     char buffer [BUF_SIZE];
 
-     sprintf(buffer, "mkdir -p \"%s\"", save_dir);
+     snprintf(buffer, BUF_SIZE, "mkdir -p \"%s\"", save_dir);
      system(buffer);
      BarUiMsg (settings, MSG_NONE, "Ok.\n");
    }

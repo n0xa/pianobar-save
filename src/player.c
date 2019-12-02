@@ -252,10 +252,10 @@ static bool openStream (player_t * const player) {
 			(double) player->st->duration;
 
   char *save_dir = player->settings->save_dir;
-  char tmp_filename [1000];
-  char save_path[1000];
-  char save_filename [1000];
-  char save_complete[1000];
+  char tmp_filename [STR_BUF_SIZE];
+  char save_path[STR_BUF_SIZE];
+  char save_filename [STR_BUF_SIZE];
+  char save_complete[STR_BUF_SIZE];
   int len_flag = 0;
 
   if (save_dir == NULL){
@@ -273,28 +273,28 @@ static bool openStream (player_t * const player) {
           strcpy(save_path, save_dir);
       }
       else{
-          sprintf(save_path, "%s/", save_dir);
+          snprintf(save_path, STR_BUF_SIZE, "%s/", save_dir);
       }
 
-      sprintf(save_path, "%s%s/", save_path, player->station);
+      snprintf(save_path, STR_BUF_SIZE, "%s%s/", save_path, player->station);
 
       struct stat st = {0};
       if( stat(save_path, &st) == -1 ){
           mkdir(save_path, 0700);
       }
 
-      sprintf(save_filename, "%s - %s.aac", player->artist, player->title);
+      snprintf(save_filename, STR_BUF_SIZE, "%s - %s.aac", player->artist, player->title);
 
-      for (int i=0; i < 1000; i++){
+      for (int i=0; i < STR_BUF_SIZE; i++){
           if (save_filename[i] == '/'){
               save_filename[i] = ' ';
           }
       }
 
-      sprintf(tmp_filename, "/tmp/%s",  save_filename);
+      snprintf(tmp_filename, STR_BUF_SIZE, "/tmp/%s",  save_filename);
       strcpy(player->tmp_filename, tmp_filename);
 
-      sprintf(save_complete, "%s%s", save_path, save_filename);
+      snprintf(save_complete, STR_BUF_SIZE, "%s%s", save_path, save_filename);
       strcpy(player->save_complete, save_complete);
 
       if( access( save_complete, F_OK ) != -1){
@@ -640,12 +640,13 @@ void *BarPlayerThread (void *data) {
 
   if ( player->save_file && !player->doQuit ){
   /*if ( save_file ){*/
-      char buffer [2000];
-      av_write_trailer(player->ofcx);
-      avformat_free_context (player->ofcx);
-      avio_close(player->ofcx->pb);
-      sprintf(buffer, "mv \"%s\" \"%s\"", player->tmp_filename, player->save_complete);
-      system(buffer);
+    const int BUF_SIZE = 2 * STR_BUF_SIZE;
+    char buffer [BUF_SIZE];
+    av_write_trailer(player->ofcx);
+    avformat_free_context (player->ofcx);
+    avio_close(player->ofcx->pb);
+    snprintf(buffer, BUF_SIZE, "mv \"%s\" \"%s\"", player->tmp_filename, player->save_complete);
+    system(buffer);
   }
 
 
