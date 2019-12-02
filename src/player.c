@@ -43,6 +43,7 @@ THE SOFTWARE.
 #include <assert.h>
 #include <arpa/inet.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 
 #include <libavcodec/avcodec.h>
 #include <libavutil/avutil.h>
@@ -53,6 +54,7 @@ THE SOFTWARE.
 /* required by ffmpeg1.2 for avfilter_copy_buf_props */
 #include <libavfilter/avcodec.h>
 #endif
+#include <libavformat/avio.h>
 #include <libavutil/channel_layout.h>
 #include <libavutil/opt.h>
 #include <libavutil/frame.h>
@@ -248,6 +250,85 @@ static bool openStream (player_t * const player) {
 
 	const unsigned int songDuration = av_q2d (player->st->time_base) *
 			(double) player->st->duration;
+
+  char *save_dir = player->settings->save_dir;
+  char tmp_filename [1000];
+  char save_path[1000];
+  char save_filename [1000];
+  char save_complete[1000];
+  int len_flag = 0;
+
+  if (save_dir == NULL){
+      player->save_file = false;
+  }
+  else{
+      player->save_file = true;
+  }
+
+  if ( player->save_file ){
+      char *music;
+      int i;
+
+      if (save_dir[strlen(save_dir) - 1] == '/'){
+          strcpy(save_path, save_dir);
+      }
+      else{
+          sprintf(save_path, "%s/", save_dir);
+      }
+
+      sprintf(save_path, "%s%s/", save_path, player->station);
+
+      struct stat st = {0};
+      if( stat(save_path, &st) == -1 ){
+          mkdir(save_path, 0700);
+      }
+
+      sprintf(save_filename, "%s - %s.aac", player->artist, player->title);
+
+      for (int i=0; i < 1000; i++){
+          if (save_filename[i] == '/'){
+              save_filename[i] = ' ';
+          }
+      }
+
+      sprintf(tmp_filename, "/tmp/%s",  save_filename);
+      strcpy(player->tmp_filename, tmp_filename);
+
+      sprintf(save_complete, "%s%s", save_path, save_filename);
+      strcpy(player->save_complete, save_complete);
+
+      if( access( save_complete, F_OK ) != -1){
+          player->save_file = false;
+      }
+      else{
+          player->save_file = true;
+      }
+
+  }
+
+  AVFormatContext *ofcx;
+  AVOutputFormat *ofmt;
+  AVStream *ost;
+
+
+  if ( player->save_file ){
+      ofmt = av_guess_format( NULL, tmp_filename, NULL);
+      ofcx = avformat_alloc_context();
+      ofcx->oformat = ofmt;
+      avio_open2(&ofcx->pb, tmp_filename, AVIO_FLAG_WRITE, NULL, NULL);
+
+      ost = avformat_new_stream( ofcx, NULL);
+      avcodec_copy_context( ost->codec, player->st->codec);
+
+      ost->time_base = player->st->time_base;
+      ost->codec->time_base = ost->time_base;
+
+      avformat_write_header( ofcx, NULL );
+  }
+
+  player->ofcx = ofcx;
+  player->ost = ost;
+
 	pthread_mutex_lock (&player->lock);
 	player->songPlayed = 0;
 	player->songDuration = songDuration;
@@ -417,6 +498,7 @@ static int play (player_t * const player) {
 	while (!shouldQuit (player) && drainMode != DONE) {
 		if (drainMode == FILL) {
 			ret = av_read_frame (player->fctx, &pkt);
+      AVPacket pkt_write = pkt;
 			if (ret == AVERROR_EOF) {
 				/* enter drain mode */
 				drainMode = DRAIN;
@@ -437,6 +519,24 @@ static int play (player_t * const player) {
 			} else {
 				/* fill buffer */
 				avcodec_send_packet (cctx, &pkt);
+
+        // save packet
+        player->pkt_write = pkt_write;
+
+        if ( player->save_file ){
+          pkt_write.stream_index = player->ost->id;
+          pkt_write.pts = av_rescale_q(
+              pkt_write.pts,
+              player->fctx->streams[0]->codec->time_base,
+              player->ofcx->streams[0]->time_base
+          );
+          pkt_write.dts = av_rescale_q(
+              pkt_write.dts,
+              player->fctx->streams[0]->codec->time_base,
+              player->ofcx->streams[0]->time_base
+          );
+          av_write_frame( player->ofcx, &pkt_write);
+        }
 			}
 		}
 
@@ -513,6 +613,7 @@ void *BarPlayerThread (void *data) {
 
 	player_t * const player = data;
 	uintptr_t pret = PLAYER_RET_OK;
+  int error;
 
 	bool retry;
 	do {
@@ -536,6 +637,17 @@ void *BarPlayerThread (void *data) {
 	} while (retry);
 
 	changeMode (player, PLAYER_FINISHED);
+
+  if ( player->save_file && !player->doQuit ){
+  /*if ( save_file ){*/
+      char buffer [2000];
+      av_write_trailer(player->ofcx);
+      avformat_free_context (player->ofcx);
+      avio_close(player->ofcx->pb);
+      sprintf(buffer, "mv \"%s\" \"%s\"", player->tmp_filename, player->save_complete);
+      system(buffer);
+  }
+
 
 	return (void *) pret;
 }

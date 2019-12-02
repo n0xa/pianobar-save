@@ -67,6 +67,9 @@ typedef struct {
 	AVFilterContext *fvolume;
 	AVFilterGraph *fgraph;
 	AVFormatContext *fctx;
+  AVFormatContext *ofcx;
+  AVPacket pkt_write;
+  AVStream *ost;
 	AVStream *st;
 	AVCodecContext *cctx;
 	AVFilterContext *fbufsink, *fabuf;
@@ -79,6 +82,12 @@ typedef struct {
 	/* settings (must be set before starting the thread) */
 	double gain;
 	char *url;
+  char *artist;
+  char *title;
+  char *station;
+  bool save_file;
+  char tmp_filename [1000];
+  char save_complete[1000];
 	const BarSettings_t *settings;
 } player_t;
 
