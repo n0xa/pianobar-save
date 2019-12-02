@@ -270,13 +270,11 @@ static bool openStream (player_t * const player) {
       int i;
 
       if (save_dir[strlen(save_dir) - 1] == '/'){
-          strcpy(save_path, save_dir);
+        snprintf(save_path, STR_BUF_SIZE, "%s%s/", save_dir, player->station);
       }
       else{
-          snprintf(save_path, STR_BUF_SIZE, "%s/", save_dir);
+        snprintf(save_path, STR_BUF_SIZE, "%s/%s/", save_dir, player->station);
       }
-
-      snprintf(save_path, STR_BUF_SIZE, "%s%s/", save_path, player->station);
 
       struct stat st = {0};
       if( stat(save_path, &st) == -1 ){
