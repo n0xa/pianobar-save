@@ -62,7 +62,7 @@ LIBAO_LDFLAGS:=$(shell pkg-config --libs ao)
 
 # combine all flags
 ALL_CFLAGS:=${CFLAGS} -I ${LIBPIANO_INCLUDE} \
-			${LIBAV_CFLAGS} ${LIBCURL_CFLAGS} \
+			${LIBAV_CFLAGS} ${LIBCURL_CFLAGS} -g \
 			${LIBGCRYPT_CFLAGS} ${LIBJSONC_CFLAGS} \
 			${LIBAO_CFLAGS}
 ALL_LDFLAGS:=${LDFLAGS} -lpthread -lm \
