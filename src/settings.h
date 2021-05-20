@@ -95,6 +95,7 @@ typedef struct {
 	char *proxy;
 	char *bindTo;
 	char *autostartStation;
+	char *save_dir;
 	char *eventCmd;
 	char *loveIcon, *banIcon, *tiredIcon;
 	char *atIcon;

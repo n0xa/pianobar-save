@@ -49,6 +49,8 @@ typedef enum {
 	PLAYER_FINISHED,
 } BarPlayerMode;
 
+#define STR_BUF_SIZE 1000
+
 typedef struct {
 	/* public attributes protected by mutex */
 	pthread_mutex_t lock, aoplayLock;
@@ -67,6 +69,9 @@ typedef struct {
 	AVFilterContext *fvolume;
 	AVFilterGraph *fgraph;
 	AVFormatContext *fctx;
+  AVFormatContext *ofcx;
+  AVPacket pkt_write;
+  AVStream *ost;
 	AVStream *st;
 	AVCodecContext *cctx;
 	AVFilterContext *fbufsink, *fabuf;
@@ -79,6 +84,12 @@ typedef struct {
 	/* settings (must be set before starting the thread) */
 	double gain;
 	char *url;
+  char *artist;
+  char *title;
+  char *station;
+  bool save_file;
+  char tmp_filename [STR_BUF_SIZE];
+  char save_complete[STR_BUF_SIZE];
 	const BarSettings_t *settings;
 } player_t;
 
