@@ -17,12 +17,17 @@ Dependencies
 [2] required: demuxer mov, decoder aac, protocol http and filters volume,
     aformat, aresample
 
-Building
---------
+Adding Dependencies for Ubuntu 20.04
+------------------------------------
+
+# apt install libavfilter-dev libgcrypt20-dev libcurl4-openssl-dev libao-dev libjson-c-dev
+
+Building Notes
+--------------
 
 Edit the Makefile and then type
 
-	gmake clean && gmake
+	make clean && make
 
 You can run the client directly from the source directory now
  
@@ -30,5 +35,5 @@ You can run the client directly from the source directory now
 
 Or install it by issuing
 	
-	gmake install
+	make install
 

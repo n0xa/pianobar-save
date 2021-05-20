@@ -1,0 +1,10 @@
+Basic Configuration
+-------------------
+
+1. mkdir ~/.config/pianobar
+2. vi ~/.config/pianobar/config
+
+    user = your@user.name
+    password = password
+    save_dir = /some/path/to/save/to/
+    
