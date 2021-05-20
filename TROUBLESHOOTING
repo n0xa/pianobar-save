@@ -1,0 +1,12 @@
+Audio Popping/Crackling
+-----------------------
+
+Audio Popping/Crackling issues might be resolved by switching to ALSA
+https://github.com/PromyLOPh/pianobar/issues/167
+
+Example Solution:
+
+Add the following to ~/.libao 
+
+    default_driver=alsa
+    dev=default
