@@ -24,7 +24,7 @@ THE SOFTWARE.
 #include "../config.h"
 
 #include <curl/curl.h>
-#include <json.h>
+#include <json-c/json.h>
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>

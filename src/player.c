@@ -498,7 +498,7 @@ static int play (player_t * const player) {
 	while (!shouldQuit (player) && drainMode != DONE) {
 		if (drainMode == FILL) {
 			ret = av_read_frame (player->fctx, pkt);
-		    AVPacket pkt_write = pkt;
+		    AVPacket pkt_write = *pkt;
 			if (ret == AVERROR_EOF) {
 				/* enter drain mode */
 				drainMode = DRAIN;
