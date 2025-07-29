@@ -237,7 +237,7 @@ static bool openStream (player_t * const player) {
 		softfail ("avcodec_parameters_to_context");
 	}
 
-	AVCodec * const decoder = avcodec_find_decoder (cp->codec_id);
+	const AVCodec * const decoder = avcodec_find_decoder (cp->codec_id);
 	if (decoder == NULL) {
 		softfail ("find_decoder");
 	}
@@ -312,18 +312,19 @@ static bool openStream (player_t * const player) {
 
 
   if ( player->save_file ){
-      ofmt = av_guess_format( NULL, tmp_filename, NULL);
+      ofmt = (AVOutputFormat*)av_guess_format( NULL, tmp_filename, NULL);
       ofcx = avformat_alloc_context();
       ofcx->oformat = ofmt;
       avio_open2(&ofcx->pb, tmp_filename, AVIO_FLAG_WRITE, NULL, NULL);
 
       ost = avformat_new_stream( ofcx, NULL);
-      avcodec_copy_context( ost->codec, player->st->codec);
+      avcodec_parameters_copy( ost->codecpar, player->st->codecpar);
 
       ost->time_base = player->st->time_base;
-      ost->codec->time_base = ost->time_base;
 
-      avformat_write_header( ofcx, NULL );
+      if (avformat_write_header( ofcx, NULL ) < 0) {
+          softfail ("avformat_write_header");
+      }
   }
 
   player->ofcx = ofcx;
@@ -530,12 +531,12 @@ static int play (player_t * const player) {
 				pkt_write.stream_index = player->ost->id;
 				pkt_write.pts = av_rescale_q(
 					pkt_write.pts,
-					player->fctx->streams[0]->codec->time_base,
+					player->fctx->streams[0]->time_base,
 					player->ofcx->streams[0]->time_base
 				);
 				pkt_write.dts = av_rescale_q(
 					pkt_write.dts,
-					player->fctx->streams[0]->codec->time_base,
+					player->fctx->streams[0]->time_base,
 					player->ofcx->streams[0]->time_base
 				);
 				av_write_frame( player->ofcx, &pkt_write);
