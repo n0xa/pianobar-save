@@ -362,11 +362,13 @@ static bool openFilter (player_t * const player) {
 	/* abuffer */
 	AVRational time_base = player->st->time_base;
 
+	char channelLayout[128];
+	av_channel_layout_describe(&player->cctx->ch_layout, channelLayout, sizeof(channelLayout));
 	snprintf (strbuf, sizeof (strbuf),
-			"time_base=%d/%d:sample_rate=%d:sample_fmt=%s:channel_layout=0x%"PRIx64, 
+			"time_base=%d/%d:sample_rate=%d:sample_fmt=%s:channel_layout=%s",
 			time_base.num, time_base.den, cp->sample_rate,
 			av_get_sample_fmt_name (player->cctx->sample_fmt),
-			cp->channel_layout);
+			channelLayout);
 	if ((ret = avfilter_graph_create_filter (&player->fabuf,
 			avfilter_get_by_name ("abuffer"), "source", strbuf, NULL,
 			player->fgraph)) < 0) {
@@ -420,7 +422,7 @@ static bool openDevice (player_t * const player) {
 	memset (&aoFmt, 0, sizeof (aoFmt));
 	aoFmt.bits = av_get_bytes_per_sample (avformat) * 8;
 	assert (aoFmt.bits > 0);
-	aoFmt.channels = cp->channels;
+	aoFmt.channels = cp->ch_layout.nb_channels;
 	aoFmt.rate = getSampleRate (player);
 	aoFmt.byte_format = AO_FMT_NATIVE;
 
@@ -512,8 +514,12 @@ static int play (player_t * const player) {
 			} else if (ret < 0) {
 				/* error, abort */
 				/* mark the EOF, so that BarAoPlayThread can quit*/
-				debugPrint (DEBUG_AUDIO, "av_read_frame failed with code %i, sending "
-						"NULL frame\n", ret);
+				char error[AV_ERROR_MAX_STRING_SIZE];
+				if (av_strerror(ret, error, sizeof(error)) < 0) {
+					strncpy (error, "(unknown)", sizeof(error)-1);
+				}
+				debugPrint (DEBUG_AUDIO, "av_read_frame failed with code %i (%s), "
+						"sending NULL frame\n", ret, error);
 				pthread_mutex_lock (&player->aoplayLock);
 				const int rt = av_buffersrc_add_frame (player->fabuf, NULL);
 				assert (rt == 0);
@@ -607,7 +613,7 @@ static void finish (player_t * const player) {
 		player->fgraph = NULL;
 	}
 	if (player->cctx != NULL) {
-		avcodec_close (player->cctx);
+		avcodec_free_context (&player->cctx);
 		player->cctx = NULL;
 	}
 	if (player->fctx != NULL) {
@@ -697,8 +703,7 @@ void *BarAoPlayThread (void *data) {
 		}
 		pthread_mutex_unlock (&player->aoplayLock);
 
-		const int numChannels = av_get_channel_layout_nb_channels (
-				filteredFrame->channel_layout);
+		const int numChannels = filteredFrame->ch_layout.nb_channels;
 		const int bps = av_get_bytes_per_sample (filteredFrame->format);
 		ao_play (player->aoDev, (char *) filteredFrame->data[0],
 				filteredFrame->nb_samples * numChannels * bps);

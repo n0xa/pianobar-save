@@ -161,8 +161,8 @@ static size_t httpFetchCb (char *ptr, size_t size, size_t nmemb,
 
 /*	libcurl progress callback. aborts the current request if user pressed ^C
  */
-int progressCb (void * const data, double dltotal, double dlnow,
-		double ultotal, double ulnow) {
+int progressCb (void * const data, curl_off_t dltotal, curl_off_t dlnow,
+		curl_off_t ultotal, curl_off_t ulnow) {
 	const sig_atomic_t lint = *((sig_atomic_t *) data);
 	if (lint) {
 		return 1;
@@ -224,8 +224,8 @@ static CURLcode BarPianoHttpRequest (CURL * const http,
 	setAndCheck (CURLOPT_POSTFIELDS, req->postData);
 	setAndCheck (CURLOPT_WRITEFUNCTION, httpFetchCb);
 	setAndCheck (CURLOPT_WRITEDATA, &buffer);
-	setAndCheck (CURLOPT_PROGRESSFUNCTION, progressCb);
-	setAndCheck (CURLOPT_PROGRESSDATA, &lint);
+	setAndCheck (CURLOPT_XFERINFOFUNCTION, progressCb);
+	setAndCheck (CURLOPT_XFERINFODATA, &lint);
 	setAndCheck (CURLOPT_NOPROGRESS, 0);
 	setAndCheck (CURLOPT_POST, 1);
 	setAndCheck (CURLOPT_TIMEOUT, settings->timeout);
@@ -844,6 +844,49 @@ size_t BarUiListSongs (const BarApp_t * const app,
 	return i;
 }
 
+enum {
+	NO_DURATION = 0,
+};
+#define NO_POSTFIX ""
+
+/*	Print song information to the eventcmd stream
+ *	@param Event command stream.
+ *	@param Song information.
+ *	@param Printed key name postfix, use NO_POSTFIX to print bare keys.
+ *	@param Override song length from song parameter, use NO_DURATION if unavailable.
+ */
+static void BarUiEventcmdPrintSong (FILE * restrict stream,
+		const PianoSong_t * const song, const char * const postfix,
+		const unsigned int songDuration) {
+	assert (song != NULL);
+	assert (stream != NULL);
+	assert (postfix != NULL);
+
+	fprintf (stream,
+			"artist%s=%s\n"
+			"title%s=%s\n"
+			"album%s=%s\n"
+			"coverArt%s=%s\n"
+			"rating%s=%i\n"
+			"detailUrl%s=%s\n"
+			"songDuration%s=%u\n",
+			postfix,
+			song->artist,
+			postfix,
+			song->title,
+			postfix,
+			song->album,
+			postfix,
+			song->coverArt,
+			postfix,
+			song->rating,
+			postfix,
+			song->detailUrl,
+			postfix,
+			songDuration == NO_DURATION ? song->length : songDuration
+			);
+}
+
 /*	Excute external event handler
  *	@param settings containing the cmdline
  *	@param event type
@@ -900,35 +943,36 @@ void BarUiStartEventCmd (const BarSettings_t *settings, const char *type,
 		pthread_mutex_unlock (&player->lock);
 
 		fprintf (pipeWriteFd,
-				"artist=%s\n"
-				"title=%s\n"
-				"album=%s\n"
-				"coverArt=%s\n"
 				"stationName=%s\n"
 				"songStationName=%s\n"
 				"pRet=%i\n"
 				"pRetStr=%s\n"
 				"wRet=%i\n"
 				"wRetStr=%s\n"
-				"songDuration=%u\n"
-				"songPlayed=%u\n"
-				"rating=%i\n"
-				"detailUrl=%s\n",
-				curSong == NULL ? "" : curSong->artist,
-				curSong == NULL ? "" : curSong->title,
-				curSong == NULL ? "" : curSong->album,
-				curSong == NULL ? "" : curSong->coverArt,
+				"songPlayed=%u\n",
 				curStation == NULL ? "" : curStation->name,
 				songStation == NULL ? "" : songStation->name,
 				pRet,
 				PianoErrorToStr (pRet),
 				wRet,
 				curl_easy_strerror (wRet),
-				songDuration,
-				songPlayed,
-				curSong == NULL ? PIANO_RATE_NONE : curSong->rating,
-				curSong == NULL ? "" : curSong->detailUrl
+				songPlayed
 				);
+
+		if (curSong != NULL) {
+			BarUiEventcmdPrintSong (pipeWriteFd, curSong, NO_POSTFIX, songDuration);
+		}
+
+		const PianoSong_t *nextSong = PianoListNextP (curSong);
+		if (nextSong != NULL) {
+			unsigned int i = 0;
+			PianoListForeachP (nextSong) {
+				char postfix[16];
+				snprintf (postfix, sizeof(postfix)-1, "Next%i", i);
+				BarUiEventcmdPrintSong (pipeWriteFd, nextSong, postfix, NO_DURATION);
+				i++;
+			}
+		}
 
 		if (stations != NULL) {
 			/* send station list */
