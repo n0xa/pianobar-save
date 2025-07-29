@@ -194,7 +194,7 @@ You need the following software to build pianobar:
 
 Then type::
 
-	gmake clean && gmake
+	make clean && make
 
 You can run the client directly from the source directory now::
 
@@ -202,7 +202,7 @@ You can run the client directly from the source directory now::
 
 Or install it to ``/usr/local`` by issuing::
 
-	gmake install
+	make install
 
 FAQ
 ---
